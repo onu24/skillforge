@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
-const razorpay = new Razorpay({
-  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+const getRazorpay = () => {
+  return new Razorpay({
+    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+  });
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +23,7 @@ export async function POST(request: NextRequest) {
     // Amount should be in paise for Razorpay (1 rupee = 100 paise)
     const amountInPaise = Math.round(amount * 100);
 
+    const razorpay = getRazorpay();
     const order = await razorpay.orders.create({
       amount: amountInPaise,
       currency: 'INR',
