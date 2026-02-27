@@ -83,3 +83,28 @@ export interface Review {
   comment: string;
   createdAt: Date;
 }
+
+export interface WishlistItem {
+  id: string;
+  userId: string;
+  courseId: string;
+  courseName: string;
+  addedAt: Date;
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  type: 'lesson_completed' | 'login' | 'enrollment';
+  timestamp: Date;
+}
+
+export interface Certificate {
+  id: string;
+  userId: string;
+  courseId: string;
+  courseName: string;
+  grade: string;
+  issuedAt: Date;
+}

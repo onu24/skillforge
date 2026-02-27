@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { Header } from '@/components/header';
 import { CourseBrowse } from '@/components/course-browse';
+import { Breadcrumbs } from '@/components/breadcrumbs';
 
 export const metadata: Metadata = {
   title: 'Courses - SkillForge',
@@ -11,6 +12,7 @@ export default function CoursesPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
+      <Breadcrumbs />
 
       <section className="py-12 md:py-16 border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

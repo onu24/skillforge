@@ -3,6 +3,7 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/breadcrumbs';
 
 export const metadata: Metadata = {
     title: 'About Us - SkillForge',
@@ -13,6 +14,7 @@ export default function AboutPage() {
     return (
         <div className="min-h-screen bg-background text-foreground">
             <Header />
+            <Breadcrumbs />
 
             {/* Hero */}
             <section className="relative py-20 md:py-28 overflow-hidden">

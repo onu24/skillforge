@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, X, Loader2 } from 'lucide-react';
 import { CourseGridSkeleton, FilterSpinner } from './skeletons';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchHistory } from '@/hooks/use-search-history';
 import {
   Select,
   SelectContent,
@@ -18,9 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { EmptyState } from './empty-state';
 
 export function CourseBrowse() {
   const { toast } = useToast();
+  const { history, addToHistory } = useSearchHistory();
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,7 @@ export function CourseBrowse() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLevel, setSelectedLevel] = useState('all');
   const [isFiltering, setIsFiltering] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -63,17 +67,17 @@ export function CourseBrowse() {
   const handleSearchChange = useCallback((value: string) => {
     setSearchInput(value);
     setIsFiltering(true);
-    toast({
-      variant: 'info',
-      title: 'Searching...',
-      description: `Looking for "${value}"`,
-    });
+    setShowHistory(value.length === 0);
+
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       setDebouncedQuery(value);
       setIsFiltering(false);
+      if (value.trim()) {
+        addToHistory(value);
+      }
     }, 300);
-  }, []);
+  }, [addToHistory]);
 
   // ── Apply all filters whenever any filter changes ──
   useEffect(() => {
@@ -118,12 +122,14 @@ export function CourseBrowse() {
   return (
     <div className="space-y-6">
       {/* ── Search bar ── */}
-      <div className="relative">
+      <div className="relative group">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
           placeholder="Search by title, description, or instructor..."
           value={searchInput}
           onChange={(e) => handleSearchChange(e.target.value)}
+          onFocus={() => setShowHistory(searchInput.length === 0 && history.length > 0)}
+          onBlur={() => setTimeout(() => setShowHistory(false), 200)}
           className="pl-10 pr-10 bg-input border-border text-foreground placeholder:text-muted-foreground h-11"
         />
         {searchInput && (
@@ -134,6 +140,25 @@ export function CourseBrowse() {
           >
             {isFiltering ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
           </button>
+        )}
+
+        {/* Search History Suggestions */}
+        {showHistory && history.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-card border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1">
+            <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border bg-muted/30">
+              Recent Searches
+            </div>
+            {history.map((query, i) => (
+              <button
+                key={i}
+                className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between"
+                onClick={() => handleSearchChange(query)}
+              >
+                <span>{query}</span>
+                <Search className="w-3 h-3 opacity-30" />
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -233,18 +258,13 @@ export function CourseBrowse() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 text-muted-foreground">
-          <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
-            <Search className="w-7 h-7 opacity-50" />
-          </div>
-          <p className="text-lg font-semibold mb-2">No courses found</p>
-          <p className="text-sm mb-6">
-            No courses found. Try different keywords or adjust your filters.
-          </p>
-          <Button variant="outline" onClick={clearAll} className="border-border text-foreground hover:bg-secondary">
-            Clear all filters
-          </Button>
-        </div>
+        <EmptyState
+          icon={Search}
+          title="No Courses Found"
+          message="No courses found. Try different keywords or adjust your filters."
+          ctaText="Clear all filters"
+          ctaAction={clearAll}
+        />
       )}
     </div>
   );

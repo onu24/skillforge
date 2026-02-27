@@ -13,6 +13,7 @@ import { CourseCard } from '@/components/course-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/breadcrumbs';
 import { ArrowLeft, Clock, Users, Award, PlayCircle, Infinity, MessageCircle, ChevronDown, ChevronUp, Star } from 'lucide-react';
 
 // ── Sample reviews keyed by course id ──
@@ -237,29 +238,7 @@ export default function CourseDetailsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
-      {course && (
-        <CheckoutModal
-          open={checkoutOpen}
-          onOpenChange={setCheckoutOpen}
-          courseId={course.id}
-          courseName={course.title}
-          price={course.price}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
-
-      {/* ── Breadcrumb ── */}
-      <div className="border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
-            <span>/</span>
-            <Link href="/courses" className="hover:text-foreground transition-colors">Courses</Link>
-            <span>/</span>
-            <span className="text-foreground truncate max-w-[200px]">{course.title}</span>
-          </nav>
-        </div>
-      </div>
+      <Breadcrumbs courseName={course.title} />
 
       {/* ── Hero Section ── */}
       <section className="relative border-b border-border overflow-hidden">

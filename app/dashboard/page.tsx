@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Toaster } from '@/components/ui/toaster';
+import { EmptyState } from '@/components/empty-state';
+import { Header } from '@/components/header'
+import { Footer } from '@/components/footer'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,13 +18,15 @@ import {
   Award,
   Bell,
   BookOpen,
-  Clock3,
+  Bookmark,
+  Clock,
   Download,
   ExternalLink,
   Flame,
   FolderDown,
   Heart,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Menu,
   Search,
@@ -29,9 +35,13 @@ import {
   Star,
   Target,
   Trophy,
+  X,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import { DashboardPageSkeleton } from '@/components/skeletons';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchHistory } from '@/hooks/use-search-history';
 import {
   Sheet,
   SheetContent,
@@ -39,6 +49,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { useAuth } from "@/lib/auth-context"
+import { getDashboardStats, toggleWishlist, getWishlist, getActivityLogs, getCertificates } from "@/lib/firestore-helpers"
 
 type Category = 'Web Development' | 'React' | 'Design';
 
@@ -145,7 +157,7 @@ const CERTIFICATES = [
   { id: 'cert2', courseName: 'Responsive Web Design', completionDate: 'February 3, 2026', grade: 'A+ (97%)' },
 ];
 
-const RECENT_ACTIVITY = [
+const RECENT_ACTIVITY_MOCK = [
   { id: 'act1', time: 'Today, 9:15 AM', icon: BookOpen, description: 'Completed lesson: Introduction to HTML5', href: '/courses/web-dev-fundamentals/learn' },
   { id: 'act2', time: 'Yesterday, 8:02 PM', icon: Award, description: 'Earned certificate in Web Development', href: '#certificates' },
   { id: 'act3', time: 'Yesterday, 6:40 PM', icon: Trophy, description: 'Achievement unlocked: 7-Day Streak', href: '#achievements' },
@@ -153,19 +165,13 @@ const RECENT_ACTIVITY = [
   { id: 'act5', time: 'February 24, 2026', icon: Target, description: 'Reached 85% in UI/UX Design Masterclass', href: '/courses/ui-ux-design-masterclass/learn' },
 ];
 
-const STATS = [
-  { key: 'hours', title: 'Total Learning Hours', value: '42.5h', change: '↑ 12% from last month', gradient: 'from-blue-500/20 to-blue-400/5', icon: Clock3 },
-  { key: 'streak', title: 'Current Streak', value: '7 days', change: '↑ 5% from last month', gradient: 'from-cyan-500/25 to-cyan-400/5', icon: Flame },
-  { key: 'certificates', title: 'Certificates Earned', value: '2', change: '↑ 18% from last month', gradient: 'from-amber-500/20 to-amber-400/5', icon: Award },
-  { key: 'saved', title: 'Saved Courses', value: '1', change: '↓ 3% from last month', gradient: 'from-red-500/20 to-red-400/5', icon: Heart },
-] as const;
-
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
 }
+
 
 function categoryClass(category: Category) {
   if (category === 'Web Development') return 'bg-blue-500/15 text-blue-300 border-blue-500/40';
@@ -177,8 +183,12 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, userData, loading, signOut } = useAuth();
   const { toast } = useToast();
+  const { history, addToHistory } = useSearchHistory();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedTerm, setDebouncedTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [savedCourseIds, setSavedCourseIds] = useState<string[]>(['advanced-react-patterns']);
@@ -186,6 +196,76 @@ export default function DashboardPage() {
     { id: 'design-systems', title: 'Design Systems from Scratch', instructor: 'Mia Walker', price: '$74', rating: 4.8 },
   ]);
   const [animateAchievements, setAnimateAchievements] = useState(false);
+  const [stats, setStats] = useState<any>({
+    hours: 0,
+    streak: 0,
+    certificates: 0,
+    saved: 0,
+    growth: { hours: 0, streak: 0, certificates: 0, saved: 0 }
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [dbActivities, setDbActivities] = useState<any[]>([]);
+  const [dbCertificates, setDbCertificates] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadData() {
+      if (user) {
+        setStatsLoading(true);
+        try {
+          const [s, w, a, c] = await Promise.all([
+            getDashboardStats(user.uid),
+            getWishlist(user.uid),
+            getActivityLogs(user.uid),
+            getCertificates(user.uid)
+          ]);
+          setStats(s);
+          setWishlist(w as any);
+          setDbActivities(a);
+          setDbCertificates(c);
+        } catch (error) {
+          console.error("Error loading dashboard data:", error);
+        } finally {
+          setStatsLoading(false);
+        }
+      }
+    }
+    loadData();
+  }, [user]);
+
+  const STATS = [
+    {
+      title: "Total Learning Hours",
+      value: stats.hours.toFixed(1) + "h",
+      trend: "up",
+      icon: Clock,
+      color: "text-cyan-400",
+      bg: "bg-cyan-400/10",
+    },
+    {
+      title: "Current Learning Streak",
+      value: stats.streak + " days",
+      trend: "up",
+      icon: Flame,
+      color: "text-orange-400",
+      bg: "bg-orange-400/10",
+    },
+    {
+      title: "Certificates Earned",
+      value: stats.certificates.toString(),
+      trend: "up",
+      icon: Award,
+      color: "text-green-400",
+      bg: "bg-green-400/10",
+    },
+    {
+      title: "Saved Courses",
+      value: stats.saved.toString(),
+      trend: stats.growth.saved >= 0 ? "up" : "down",
+      icon: Bookmark,
+      color: "text-primary",
+      bg: "bg-primary/10",
+    },
+  ];
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -200,13 +280,23 @@ export default function DashboardPage() {
   const email = userData?.email || user?.email || USER_PROFILE.email;
   const firstName = name.split(' ')[0] || 'John';
 
+  useEffect(() => {
+    setIsSearching(true);
+    const id = setTimeout(() => {
+      setDebouncedTerm(searchTerm);
+      setIsSearching(false);
+      if (searchTerm.trim()) addToHistory(searchTerm);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchTerm, addToHistory]);
+
   const filteredCourses = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = debouncedTerm.trim().toLowerCase();
     if (!term) return ENROLLED_COURSES;
     return ENROLLED_COURSES.filter((course) =>
       `${course.title} ${course.category} ${course.instructor}`.toLowerCase().includes(term),
     );
-  }, [searchTerm]);
+  }, [debouncedTerm]);
 
   const averageProgress = useMemo(
     () => ENROLLED_COURSES.reduce((sum, c) => sum + c.progress, 0) / ENROLLED_COURSES.length,
@@ -309,9 +399,9 @@ export default function DashboardPage() {
       <Card className="border-border/70 bg-card/50">
         <CardHeader className="pb-2"><CardTitle className="text-sm">Quick Stats</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Streak</span><span className="font-semibold">{USER_PROFILE.streak} days</span></div>
-          <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Hours</span><span className="font-semibold">{USER_PROFILE.totalHours}h</span></div>
-          <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Certificates</span><span className="font-semibold">{USER_PROFILE.certificates}</span></div>
+          <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Streak</span><span className="font-semibold">{stats.streak} days</span></div>
+          <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Hours</span><span className="font-semibold">{stats.hours.toFixed(1)}h</span></div>
+          <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Certificates</span><span className="font-semibold">{stats.certificates}</span></div>
           <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"><span className="text-muted-foreground">Saved Courses</span><span className="font-semibold">{wishlist.length}</span></div>
         </CardContent>
       </Card>
@@ -355,6 +445,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/10 text-foreground">
+      <Breadcrumbs />
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-72 overflow-y-auto lg:block">{sidebar}</aside>
         <main className="min-w-0 flex-1 space-y-6">
@@ -364,9 +455,40 @@ export default function DashboardPage() {
                 <Menu className="size-5" />
               </Button>
               <Link href="/" className="mr-2 text-xl font-bold tracking-tight text-primary">SkillForge</Link>
-              <div className="relative hidden flex-1 sm:block">
+              <div className="relative hidden flex-1 sm:block group">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search enrolled courses" className="pl-9 h-11" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onFocus={() => setShowHistory(searchTerm.length === 0 && history.length > 0)}
+                  onBlur={() => setTimeout(() => setShowHistory(false), 200)}
+                  placeholder="Search enrolled courses"
+                  className="pl-9 h-11"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {isSearching && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="text-muted-foreground hover:text-foreground">
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Search History Suggestions */}
+                {showHistory && history.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-card border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1">
+                    {history.map((query, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between"
+                        onClick={() => { setSearchTerm(query); setShowHistory(false); }}
+                      >
+                        <span>{query}</span>
+                        <Search className="w-3 h-3 opacity-30" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <Button variant="ghost" size="icon" className="relative h-11 w-11" aria-label="Notifications"><Bell className="size-5" /><span className="absolute right-2 top-2 inline-flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">4</span></Button>
@@ -377,7 +499,17 @@ export default function DashboardPage() {
             {/* Mobile Search - shown only on very small screens */}
             <div className="relative mt-3 sm:hidden">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search enrolled courses" className="pl-9 h-11" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search enrolled courses"
+                className="pl-9 h-11"
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
           </header>
 
@@ -400,8 +532,8 @@ export default function DashboardPage() {
 
           <section id="dashboard" className="rounded-2xl border border-border/70 bg-card/50 p-5 sm:p-6">
             <p className="text-sm text-muted-foreground">{getGreeting()}</p>
-            <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Welcome back, {firstName}!</h1>
-            <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Flame className="size-4 text-orange-400" />You are on a {USER_PROFILE.streak}-day streak! Keep going.</p>
+            <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Welcome back, {user?.displayName?.split(' ')[0] || 'Learner'}!</h1>
+            <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Flame className="size-4 text-orange-400" />You are on a {stats.streak}-day streak! Keep going.</p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild><Link href="/courses">Browse New Courses</Link></Button>
               <Button variant="outline" onClick={() => jumpToSection('certificates')}>View All Certificates</Button>
@@ -410,14 +542,31 @@ export default function DashboardPage() {
           </section>
 
           <section id="progress" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
-            {STATS.map((stat) => {
+            {STATS.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <Card key={stat.key} className={cn('group border-border/70 bg-gradient-to-br transition-all duration-300 hover:scale-[1.02] hover:shadow-xl', stat.gradient)}>
-                  <CardHeader className="pb-2"><CardDescription className="text-muted-foreground/90">{stat.title}</CardDescription><CardTitle className="text-2xl">{stat.value}</CardTitle></CardHeader>
-                  <CardContent className="flex items-center justify-between pt-0 h-11">
-                    <span className="text-xs font-medium text-muted-foreground">{stat.change}</span>
-                    <Icon className="size-5 text-primary transition-transform duration-300 group-hover:scale-110" />
+                <Card key={index} className={cn('group border-border/70 bg-card/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl overflow-hidden relative')}>
+                  <div className={cn("absolute top-0 right-0 w-24 h-24 blur-3xl rounded-full translate-x-12 -translate-y-12 opacity-20", stat.bg)} />
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardDescription className="text-muted-foreground/90 font-medium">{stat.title}</CardDescription>
+                      <div className={cn("p-2 rounded-lg", stat.bg)}>
+                        <Icon className={cn("size-4", stat.color)} />
+                      </div>
+                    </div>
+                    <CardTitle className="text-3xl font-bold mt-2 tracking-tight">{stat.value}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex items-center justify-between pt-0 h-10">
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn(
+                        "text-xs font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5",
+                        stat.trend === "up" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+                      )}>
+                        {stat.trend === "up" ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+                        {Math.abs(stats.growth[stat.title.toLowerCase().includes('hour') ? 'hours' : stat.title.toLowerCase().includes('streak') ? 'streak' : stat.title.toLowerCase().includes('certificate') ? 'certificates' : 'saved'])}%
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">vs last month</span>
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -521,13 +670,13 @@ export default function DashboardPage() {
             <div><h2 className="text-xl font-semibold">Certificates</h2><p className="text-sm text-muted-foreground">Your completed course certificates.</p></div>
             {CERTIFICATES.length === 0 ? (
               <Card className="border-border/70 bg-card/50">
-                <CardContent className="p-12 text-center text-muted-foreground">
-                  <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="w-7 h-7 opacity-50" />
-                  </div>
-                  <p className="text-lg font-semibold mb-2">No certificates yet</p>
-                  <p className="text-sm">Complete your first course to earn a certificate.</p>
-                </CardContent>
+                <EmptyState
+                  icon={Trophy}
+                  title="No Certificates Yet"
+                  message="Complete courses to earn certificates"
+                  ctaText="Start Learning"
+                  ctaAction={() => jumpToSection('continue-learning')}
+                />
               </Card>
             ) : (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -551,18 +700,26 @@ export default function DashboardPage() {
           <section id="activity" className="space-y-4">
             <div><h2 className="text-xl font-semibold">Recent Activity Timeline</h2><p className="text-sm text-muted-foreground">Last 5 activities from your learning account.</p></div>
             <Card className="border-border/70 bg-card/50">
-              <CardContent className="p-4">
-                <div className="space-y-4">
-                  {RECENT_ACTIVITY.map((activity) => {
-                    const Icon = activity.icon;
-                    return (
-                      <Link key={activity.id} href={activity.href} className="group flex items-start gap-3 rounded-lg border border-border/50 bg-background/20 p-3 transition hover:border-primary/50 hover:bg-background/35">
-                        <div className="mt-0.5 rounded-md bg-secondary/60 p-2"><Icon className="size-4 text-primary" /></div>
-                        <div className="flex-1"><p className="text-xs text-muted-foreground">{activity.time}</p><p className="text-sm font-medium group-hover:text-primary">{activity.description}</p></div>
-                      </Link>
-                    );
-                  })}
-                </div>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Activity</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                {(dbActivities.length > 0 ? dbActivities : RECENT_ACTIVITY_MOCK).slice(0, 5).map((activity: any) => {
+                  const Icon = activity.icon || (activity.type === 'completion' ? Award : activity.type === 'login' ? Flame : BookOpen);
+                  return (
+                    <Link
+                      key={activity.id}
+                      href={activity.href || '#'}
+                      className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 transition-colors border-b border-border/40 last:border-0"
+                    >
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary/60">
+                        <Icon className="size-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{activity.description || `${activity.type} activity`}</p>
+                        <p className="text-[10px] text-muted-foreground">{activity.time || new Date(activity.timestamp?.seconds * 1000).toLocaleString()}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
               </CardContent>
             </Card>
           </section>
@@ -571,16 +728,13 @@ export default function DashboardPage() {
             <div><h2 className="text-xl font-semibold">Wishlist</h2><p className="text-sm text-muted-foreground">Saved/bookmarked courses.</p></div>
             {wishlist.length === 0 ? (
               <Card className="border-border/70 bg-card/50">
-                <CardContent className="p-12 text-center text-muted-foreground">
-                  <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
-                    <Heart className="w-7 h-7 opacity-50" />
-                  </div>
-                  <p className="text-lg font-semibold mb-2">Your wishlist is empty</p>
-                  <p className="text-sm mb-6">No saved courses yet. Browse courses to add them!</p>
-                  <Button asChild variant="outline" className="border-border text-foreground hover:bg-secondary">
-                    <Link href="/courses">Browse Courses</Link>
-                  </Button>
-                </CardContent>
+                <EmptyState
+                  icon={Heart}
+                  title="Your Wishlist is Empty"
+                  message="Save courses to learn later"
+                  ctaText="Browse Courses"
+                  ctaAction={() => router.push('/courses')}
+                />
               </Card>
             ) : (
               <div className="grid grid-cols-1 gap-3">

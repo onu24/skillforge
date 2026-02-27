@@ -6,6 +6,9 @@ import { FirebaseWarning } from '@/components/firebase-warning'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { NetworkStatus } from '@/components/network-status'
 import { Toaster } from '@/components/ui/toaster'
+import { PageTransition } from '@/components/page-transition'
+import { LoadingBar } from '@/components/loading-bar'
+import { Suspense } from 'react'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -49,9 +52,14 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="font-sans antialiased">
         <FirebaseWarning />
+        <Suspense fallback={null}>
+          <LoadingBar />
+        </Suspense>
         <ErrorBoundary>
           <AuthProvider>
-            {children}
+            <PageTransition>
+              {children}
+            </PageTransition>
             <NetworkStatus />
             <Toaster />
           </AuthProvider>
