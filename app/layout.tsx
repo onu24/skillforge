@@ -4,6 +4,8 @@ import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import { FirebaseWarning } from '@/components/firebase-warning'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { NetworkStatus } from '@/components/network-status'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -49,6 +51,8 @@ export default function RootLayout({
         <ErrorBoundary>
           <AuthProvider>
             {children}
+            <NetworkStatus />
+            <Toaster />
           </AuthProvider>
         </ErrorBoundary>
         <Analytics />

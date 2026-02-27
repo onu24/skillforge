@@ -6,31 +6,63 @@ import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Mail, MapPin, Phone } from 'lucide-react';
 
 export default function ContactPage() {
+    const { toast } = useToast();
     const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+    const [errors, setErrors] = useState({ name: '', email: '', message: '' });
     const [submitted, setSubmitted] = useState(false);
 
+    const validate = (nameValue: string, emailValue: string, messageValue: string) => {
+        const newErrors = { name: '', email: '', message: '' };
+
+        if (nameValue && nameValue.length < 2) {
+            newErrors.name = 'Name must be at least 2 characters.';
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailValue && !emailRegex.test(emailValue)) {
+            newErrors.email = 'Please enter a valid email address.';
+        }
+
+        if (messageValue && messageValue.length < 10) {
+            newErrors.message = 'Message must be at least 10 characters.';
+        }
+
+        setErrors(newErrors);
+        return !newErrors.name && !newErrors.email && !newErrors.message && nameValue && emailValue && messageValue;
+    };
+
+    const isFormValid = validate(formData.name, formData.email, formData.message);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        const newFormData = { ...formData, [name]: value };
+        setFormData(newFormData);
+        validate(newFormData.name, newFormData.email, newFormData.message);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitted(true);
+        toast({
+            variant: 'success',
+            title: 'Form submitted successfully!',
+            description: "We've received your message and will get back to you soon.",
+        });
     };
 
     return (
         <div className="min-h-screen bg-background text-foreground">
             <Header />
 
-            {/* Hero */}
-            <section className="relative py-20 md:py-28 overflow-hidden">
+            <section className="relative py-12 md:py-28 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-background to-background" />
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                    <h1 className="text-5xl md:text-6xl font-bold mb-6">
+                    <h1 className="text-4xl md:text-6xl font-bold mb-6">
                         Get in{' '}
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
                             Touch
@@ -66,26 +98,33 @@ export default function ContactPage() {
                                         <Input
                                             id="name" name="name" placeholder="Your name"
                                             value={formData.name} onChange={handleChange} required
-                                            className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                                            className={`h-12 bg-input border-border text-foreground placeholder:text-muted-foreground ${errors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                         />
+                                        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="email">Email</Label>
                                         <Input
                                             id="email" name="email" type="email" placeholder="you@example.com"
                                             value={formData.email} onChange={handleChange} required
-                                            className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                                            className={`h-12 bg-input border-border text-foreground placeholder:text-muted-foreground ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                         />
+                                        {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="message">Message</Label>
                                         <Textarea
                                             id="message" name="message" placeholder="Your message..."
                                             value={formData.message} onChange={handleChange} required rows={5}
-                                            className="bg-input border-border text-foreground placeholder:text-muted-foreground resize-none"
+                                            className={`bg-input border-border text-foreground placeholder:text-muted-foreground resize-none ${errors.message ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                         />
+                                        {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}
                                     </div>
-                                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                                    <Button
+                                        type="submit"
+                                        disabled={!isFormValid}
+                                        className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed text-base font-bold"
+                                    >
                                         Send Message
                                     </Button>
                                 </form>

@@ -8,7 +8,9 @@ import { CourseCard } from './course-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, X } from 'lucide-react';
+import { Search, X, Loader2 } from 'lucide-react';
+import { CourseGridSkeleton, FilterSpinner } from './skeletons';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -18,6 +20,7 @@ import {
 } from '@/components/ui/select';
 
 export function CourseBrowse() {
+  const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,33 +28,50 @@ export function CourseBrowse() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLevel, setSelectedLevel] = useState('all');
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Fetch courses on mount ──
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const data = await getAllCourses();
-        const coursesToUse = data.length > 0 ? data : sampleCourses;
-        setCourses(coursesToUse);
-        setFilteredCourses(coursesToUse);
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-        setCourses(sampleCourses);
-        setFilteredCourses(sampleCourses);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCourses();
+  const fetchCourses = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getAllCourses();
+      const coursesToUse = data.length > 0 ? data : sampleCourses;
+      setCourses(coursesToUse);
+      setFilteredCourses(coursesToUse);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      const msg = 'Failed to load courses. Please try again.';
+      setError(msg);
+      toast({
+        variant: 'destructive',
+        title: 'Network Error',
+        description: msg,
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   // ── Debounce search input (300ms) ──
   const handleSearchChange = useCallback((value: string) => {
     setSearchInput(value);
+    setIsFiltering(true);
+    toast({
+      variant: 'info',
+      title: 'Searching...',
+      description: `Looking for "${value}"`,
+    });
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       setDebouncedQuery(value);
+      setIsFiltering(false);
     }, 300);
   }, []);
 
@@ -108,19 +128,22 @@ export function CourseBrowse() {
         />
         {searchInput && (
           <button
-            onClick={() => { setSearchInput(''); setDebouncedQuery(''); }}
+            onClick={() => { setSearchInput(''); setDebouncedQuery(''); setIsFiltering(false); }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Clear search"
           >
-            <X className="w-4 h-4" />
+            {isFiltering ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
           </button>
         )}
       </div>
 
       {/* ── Filter dropdowns ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="bg-input border-border text-foreground">
+        <Select value={selectedCategory} onValueChange={(val) => {
+          setSelectedCategory(val);
+          toast({ variant: 'info', title: 'Applying filters...', description: `Category set to ${val === 'all' ? 'All Categories' : val}` });
+        }}>
+          <SelectTrigger className="bg-input border-border text-foreground h-11">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent className="bg-card border-border">
@@ -133,8 +156,11 @@ export function CourseBrowse() {
           </SelectContent>
         </Select>
 
-        <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-          <SelectTrigger className="bg-input border-border text-foreground">
+        <Select value={selectedLevel} onValueChange={(val) => {
+          setSelectedLevel(val);
+          toast({ variant: 'info', title: 'Applying filters...', description: `Level set to ${val === 'all' ? 'All Levels' : val.charAt(0).toUpperCase() + val.slice(1)}` });
+        }}>
+          <SelectTrigger className="bg-input border-border text-foreground h-11">
             <SelectValue placeholder="Select level" />
           </SelectTrigger>
           <SelectContent className="bg-card border-border">
@@ -186,11 +212,20 @@ export function CourseBrowse() {
 
       {/* ── Course grid ── */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-64 rounded-lg border border-border bg-card/50 animate-pulse" />
-          ))}
+        <CourseGridSkeleton count={6} />
+      ) : error ? (
+        <div className="bg-[#F44336] border border-[#d32f2f] rounded-lg p-8 text-center text-white">
+          <p className="text-lg font-semibold mb-4">{error}</p>
+          <Button
+            onClick={fetchCourses}
+            variant="secondary"
+            className="bg-white/20 hover:bg-white/30 text-white border-white/50"
+          >
+            Retry Connection
+          </Button>
         </div>
+      ) : isFiltering ? (
+        <FilterSpinner />
       ) : filteredCourses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
@@ -198,13 +233,13 @@ export function CourseBrowse() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Search className="w-7 h-7 text-primary/50" />
+        <div className="text-center py-16 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
+            <Search className="w-7 h-7 opacity-50" />
           </div>
           <p className="text-lg font-semibold mb-2">No courses found</p>
-          <p className="text-sm text-muted-foreground mb-6">
-            Try adjusting your search or filters to find what you&apos;re looking for.
+          <p className="text-sm mb-6">
+            No courses found. Try different keywords or adjust your filters.
           </p>
           <Button variant="outline" onClick={clearAll} className="border-border text-foreground hover:bg-secondary">
             Clear all filters
