@@ -16,7 +16,7 @@ export default function ContactPage() {
     const [errors, setErrors] = useState({ name: '', email: '', message: '' });
     const [submitted, setSubmitted] = useState(false);
 
-    const validate = (nameValue: string, emailValue: string, messageValue: string) => {
+    const getValidationErrors = (nameValue: string, emailValue: string, messageValue: string) => {
         const newErrors = { name: '', email: '', message: '' };
 
         if (nameValue && nameValue.length < 2) {
@@ -32,21 +32,31 @@ export default function ContactPage() {
             newErrors.message = 'Message must be at least 10 characters.';
         }
 
-        setErrors(newErrors);
-        return !newErrors.name && !newErrors.email && !newErrors.message && nameValue && emailValue && messageValue;
+        return newErrors;
     };
 
-    const isFormValid = validate(formData.name, formData.email, formData.message);
+    const isFormValid =
+        !errors.name &&
+        !errors.email &&
+        !errors.message &&
+        !!formData.name &&
+        !!formData.email &&
+        !!formData.message;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         const newFormData = { ...formData, [name]: value };
         setFormData(newFormData);
-        validate(newFormData.name, newFormData.email, newFormData.message);
+        setErrors(getValidationErrors(newFormData.name, newFormData.email, newFormData.message));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const newErrors = getValidationErrors(formData.name, formData.email, formData.message);
+        setErrors(newErrors);
+        if (newErrors.name || newErrors.email || newErrors.message) {
+            return;
+        }
         setSubmitted(true);
         toast({
             variant: 'success',

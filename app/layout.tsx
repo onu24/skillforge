@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
@@ -15,11 +15,6 @@ export const metadata: Metadata = {
   title: 'SkillForge - Learn Premium Skills Online',
   description: 'Premium online courses from expert instructors. Learn web development, design, business and more.',
   generator: 'v0.app',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    userScalable: true,
-  },
   icons: {
     icon: [
       {
@@ -37,6 +32,12 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  userScalable: true,
 }
 
 export default function RootLayout({
