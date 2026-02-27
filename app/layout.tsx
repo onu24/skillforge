@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import { FirebaseWarning } from '@/components/firebase-warning'
+import { ErrorBoundary } from '@/components/error-boundary'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -45,9 +46,11 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="font-sans antialiased">
         <FirebaseWarning />
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ErrorBoundary>
         <Analytics />
       </body>
     </html>

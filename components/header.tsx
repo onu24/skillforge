@@ -32,10 +32,10 @@ export function Header() {
             <Link href="/courses" className="text-foreground hover:text-primary transition-colors">
               Courses
             </Link>
-            <Link href="/" className="text-foreground hover:text-primary transition-colors">
+            <Link href="/about" className="text-foreground hover:text-primary transition-colors">
               About
             </Link>
-            <Link href="/" className="text-foreground hover:text-primary transition-colors">
+            <Link href="/contact" className="text-foreground hover:text-primary transition-colors">
               Contact
             </Link>
           </nav>

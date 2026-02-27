@@ -55,6 +55,8 @@ export interface Enrollment {
   courseName: string;
   progress: number; // 0-100
   completedLessons: string[]; // Array of lesson IDs
+  lessonNotes?: Record<string, string>; // Notes keyed by lesson ID
+  lastLessonId?: string;
   enrollmentDate: Date;
   lastAccessDate: Date;
 }

@@ -8,6 +8,9 @@ import {
   where,
   getDocs,
   addDoc,
+  deleteDoc,
+  limit,
+  arrayRemove,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -155,6 +158,124 @@ export async function createEnrollment(
     }
   } catch (error) {
     console.error('Error creating enrollment:', error);
+    throw error;
+  }
+}
+
+export async function getUserEnrollmentForCourse(
+  userId: string,
+  courseId: string
+): Promise<Enrollment | null> {
+  try {
+    const q = query(
+      collection(db, 'enrollments'),
+      where('userId', '==', userId),
+      where('courseId', '==', courseId),
+      limit(1)
+    );
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      return null;
+    }
+    const enrollmentDoc = querySnapshot.docs[0];
+    return {
+      ...(enrollmentDoc.data() as Omit<Enrollment, 'id'>),
+      id: enrollmentDoc.id,
+    } as Enrollment;
+  } catch (error) {
+    console.error('Error fetching enrollment for course:', error);
+    return null;
+  }
+}
+
+export async function saveEnrollmentProgress(
+  userId: string,
+  courseId: string,
+  courseName: string,
+  progress: number,
+  completedLessons: string[],
+  lastLessonId?: string
+): Promise<void> {
+  try {
+    const existingEnrollment = await getUserEnrollmentForCourse(userId, courseId);
+    const payload = {
+      progress,
+      completedLessons,
+      lastLessonId: lastLessonId || null,
+      lastAccessDate: Timestamp.now(),
+    };
+
+    if (existingEnrollment) {
+      await updateDoc(doc(db, 'enrollments', existingEnrollment.id), payload);
+      return;
+    }
+
+    await addDoc(collection(db, 'enrollments'), {
+      userId,
+      courseId,
+      courseName,
+      ...payload,
+      lessonNotes: {},
+      enrollmentDate: Timestamp.now(),
+    } as Omit<Enrollment, 'id'>);
+  } catch (error) {
+    console.error('Error saving enrollment progress:', error);
+    throw error;
+  }
+}
+
+export async function saveLessonNote(
+  userId: string,
+  courseId: string,
+  courseName: string,
+  lessonId: string,
+  note: string
+): Promise<void> {
+  try {
+    const existingEnrollment = await getUserEnrollmentForCourse(userId, courseId);
+    if (existingEnrollment) {
+      await updateDoc(doc(db, 'enrollments', existingEnrollment.id), {
+        [`lessonNotes.${lessonId}`]: note,
+        lastAccessDate: Timestamp.now(),
+      });
+      return;
+    }
+
+    await addDoc(collection(db, 'enrollments'), {
+      userId,
+      courseId,
+      courseName,
+      progress: 0,
+      completedLessons: [],
+      lessonNotes: { [lessonId]: note },
+      enrollmentDate: Timestamp.now(),
+      lastAccessDate: Timestamp.now(),
+    } as Omit<Enrollment, 'id'>);
+  } catch (error) {
+    console.error('Error saving lesson note:', error);
+    throw error;
+  }
+}
+
+export async function unenrollFromCourse(
+  userId: string,
+  courseId: string
+): Promise<void> {
+  try {
+    const existingEnrollment = await getUserEnrollmentForCourse(userId, courseId);
+    if (existingEnrollment) {
+      await deleteDoc(doc(db, 'enrollments', existingEnrollment.id));
+    }
+
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      await updateDoc(userRef, {
+        enrolledCourses: arrayRemove(courseId),
+      });
+    }
+  } catch (error) {
+    console.error('Error unenrolling user from course:', error);
     throw error;
   }
 }

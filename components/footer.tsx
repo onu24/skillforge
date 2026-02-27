@@ -31,7 +31,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/courses" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   For Instructors
                 </Link>
               </li>
@@ -43,17 +43,17 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Company</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Blog
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/careers" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Careers
                 </Link>
               </li>
@@ -65,17 +65,17 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Legal</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Contact
                 </Link>
               </li>
@@ -86,7 +86,7 @@ export function Footer() {
         {/* Social and bottom info */}
         <div className="border-t border-border pt-8 flex flex-col md:flex-row items-center justify-between">
           <p className="text-sm text-muted-foreground text-center md:text-left mb-4 md:mb-0">
-            © 2024 SkillForge. All rights reserved.
+            Copyright 2026 SkillForge. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <a
@@ -123,3 +123,4 @@ export function Footer() {
     </footer>
   );
 }
+

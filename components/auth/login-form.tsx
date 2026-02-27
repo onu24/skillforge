@@ -31,6 +31,11 @@ export function LoginForm() {
     setLoading(true);
 
     try {
+      if (!auth) {
+        setError('Authentication is not configured. Please check your Firebase settings.');
+        setLoading(false);
+        return;
+      }
       await signInWithEmailAndPassword(auth, formData.email, formData.password);
       router.push('/dashboard');
     } catch (err: any) {
@@ -44,6 +49,11 @@ export function LoginForm() {
     setError('');
     setLoading(true);
     try {
+      if (!auth) {
+        setError('Authentication is not configured. Please check your Firebase settings.');
+        setLoading(false);
+        return;
+      }
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       router.push('/dashboard');

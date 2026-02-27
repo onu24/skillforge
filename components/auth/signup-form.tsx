@@ -42,6 +42,10 @@ export function SignupForm() {
         throw new Error('Password must be at least 6 characters');
       }
 
+      if (!auth) {
+        throw new Error('Authentication is not configured. Please check your Firebase settings.');
+      }
+
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         formData.email,
@@ -61,6 +65,11 @@ export function SignupForm() {
     setError('');
     setLoading(true);
     try {
+      if (!auth) {
+        setError('Authentication is not configured. Please check your Firebase settings.');
+        setLoading(false);
+        return;
+      }
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const displayName = result.user.displayName || result.user.email?.split('@')[0] || 'User';
